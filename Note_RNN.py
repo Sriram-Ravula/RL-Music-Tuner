@@ -45,7 +45,7 @@ class Note_CNN(nn.Module):
 
         return output.view(self.batch_size, -1)
 
-#given an input of size (1, num_instruments, input)
+#given an torch.tensor input of size (1, num_instruments, input)
 def size_right(X, num_steps, num_instruments):
     snippet_length = list(X.shape)[-1] #get the number of steps given to us in the snippet
 
@@ -63,65 +63,95 @@ def size_right(X, num_steps, num_instruments):
 
     return output
 
-y = Variable(torch.tensor([1,0,0,0,0,0,0,0,0,0]).view(1, 10, 1))
-y.requires_grad = False
+#Given a state of shape (1, num_instruments, num_steps) and an action of size (1, num_instruments, 1), add the action to the end of the state and rotate all other actions upward
+#important - given state has full 
+def add_action(S, a):
+	#check that the two inputs have the same number of channels
+	if (list(S.shape)[1] != list(a.shape)[1]): 
+		return -100
+	#check that the given action has only one timestep
+	if (list(a.shape)[-1] != 1):
+		return -100
 
-output = size_right(y, 32, 10)
-print(output[0,:,0])
-print(output[0,:,1])
-print(output[0,:,30])
-print(output[0,:,31])
+	num_steps = list(S.shape)[-1] #the length in timesteps of the given state 
+
+	#will hold S rotated one row upward with a at the last row
+	output = torch.empty(S.shape)
+
+	#transfer the all but the first row of S to all but the last row of the output
+	output[0,:,0:num_steps-1] = S[0,:,1:num_steps]
+
+	#put the taken action as the last timestep
+	output[0,:,num_steps-1] = a.squeeze()
+
+	output = Variable(output)
+	output.requires_grad = False
+
+	return output
 
 
-X = np.zeros((32, 10))
-X2 = np.zeros((32, 10))
+#trains the Note_CNN for a given number of iterations
+def train_Note_CNN(training_data, validation_data, Note_CNN, num_epochs=1000, log_mse=False, log_every=50, filename = "NOTE_CNN_WEIGHTS.pt"):
+	training_data = Variable(torch.tensor(training_data))
+	validation_data = Variable(torch.tensor(validation_data))
 
-for i in range(32):
-    X[i,:] = [1,0,0,0,0,0,0,0,0,0]
-    X2[i,:] = [0,0,0,0,0,0,0,0,0,1]
+	num_examples_validation = validation_data.shape[0]
+	num_examples_train = training_data.shape[0]
+	num_instruments = training_data.shape[1]
+	num_steps = training_data.shape[2]
+
+	#Make sure training and validation data have same dimension
+	if (num_instruments != validation_data.shape[1] or num_steps != validation_data.shape[2]):
+		return -100
+
+	if log_mse:
+		loss_log = np.array(int(num_epochs/log_every))
+
+	crossentropy = torch.nn.CrossEntropyLoss()
+	optim = torch.optim.Adam(Note_CNN.parameters(), lr=1e-3)
+
+	for e in range(num_epochs):
+		sample_order = np.random.choice(num_examples_train, num_examples_train, replace=False) #get a random ordering of samples
+
+		for s in range(num_examples_train):
+			sample = training_data[sample_order[s]].view(1, num_instruments, num_steps) #current training sample
+
+			for i in range(7, num_steps): #starting at the eigth row, feed the traing example to the network and train
+				optim.zero_grad()
+
+				state = size_right(sample[0,:,0:i+1].view(1,num_instruments,-1), num_steps, num_instruments) #get the current state by expanding the first i rows
+
+				net_out = Note_CNN(state) #the network output for this particular set of rows
+
+				target = Variable(torch.argmax(sample[0,:,i+1].squeeze()).view(-1)) #take the argmax of the next row to get an index for cross entropy loss
+
+				loss = crossentropy(net_out, target) 
+
+				loss.backward()
+
+				optim.step()
+
+		#check if we must log validation MSE - if so, iterate through every example in validation set and sum loss vs net predictin
+		if (log_mse and e%log_every==0): 
+
+			for s in range(num_examples_validation):
+				sample = validation_data[s].view(1, num_instruments, num_steps) #current training sample
+
+				for i in range(7, num_steps): #starting at the eigth row, feed the traing example to the network and train
+					state = size_right(sample[0,:,0:i+1].view(1,num_instruments,-1), num_steps, num_instruments) #get the current state by expanding the first i rows
+
+					net_out = Note_CNN(state) #the network output for this particular set of rows
+
+					target = Variable(torch.argmax(sample[0,:,i+1].squeeze()).view(-1)) #take the argmax of the next row to get an index for cross entropy loss
+
+					loss = crossentropy(net_out, target) 
+
+					loss_log[int(e/log_every)] += loss.detach().numpy()
 
 
-X = Variable(torch.tensor(X).view(1,10,32).float())
-X.requires_grad = False
+	torch.save(Note_CNN.state_dict(), filename)
 
-X2 = Variable(torch.tensor(X2).view(1,10,32).float())
-X2.requires_grad = False
+	
+	return loss_log
 
-y = Variable(torch.tensor(np.argmax([1,0,0,0,0,0,0,0,0,0])).view(-1))
-y.requires_grad = False
-
-y2 = Variable(torch.tensor(np.argmax([0,0,0,0,0,0,0,0,0,1])).view(-1)) 
-y2.requires_grad = False
-
-net = Note_CNN(1, 32, 10)
-
-optim = torch.optim.Adam(net.parameters(), lr=1e-3)
-
-crossentropy = torch.nn.CrossEntropyLoss()
-
-for i in range(100):
-    optim.zero_grad()
-
-    if (i%2==0):
-        loss = crossentropy(net(X), y)
-    else:
-        loss = crossentropy(net(X2), y2)
-
-    loss.backward()
-
-    optim.step()
-
-print(net(X))
-print(net(X2))
-
-X3 = np.zeros((32, 10))
-
-for i in range(32):
-    X3[i,:] = [0,1,0,0,0,0,0,0,0,0]
-
-X3 = Variable(torch.tensor(X3).view(1,10,32).float())
-X3.requires_grad = False
-
-print(net(X3))
-
-print(list(X3.shape)[-1])
+	return -1
