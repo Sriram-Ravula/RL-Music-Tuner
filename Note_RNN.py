@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
+import time
 
 class Flatten(torch.nn.Module):
     def forward(self, x):
@@ -46,7 +47,7 @@ class Note_CNN(nn.Module):
         return output.view(self.batch_size, -1)
 
 #given an torch.tensor input of size (1, num_instruments, input)
-def size_right(X, num_steps, num_instruments):
+def size_right(X, num_steps, num_instruments, CUDA=False):
     snippet_length = list(X.shape)[-1] #get the number of steps given to us in the snippet
 
     if (num_instruments != list(X.shape)[1]): #if the number of channels do not match, fail
@@ -54,7 +55,10 @@ def size_right(X, num_steps, num_instruments):
     elif (num_steps < snippet_length): #if the given snippet is longer than the desired length, fail
         return -100
 
-    output = torch.zeros(1, num_instruments, num_steps)
+    if CUDA:
+    	output = torch.zeros(1, num_instruments, num_steps).type(torch.cuda.FloatTensor)
+    else:
+    	output = torch.zeros(1, num_instruments, num_steps)
 
     output[0,:,num_steps-snippet_length:num_steps] = X
 
@@ -65,7 +69,7 @@ def size_right(X, num_steps, num_instruments):
 
 #Given a state of shape (1, num_instruments, num_steps) and an action of size (1, num_instruments, 1), add the action to the end of the state and rotate all other actions upward
 #important - given state has full 
-def add_action(S, a):
+def add_action(S, a, CUDA=False):
 	#check that the two inputs have the same number of channels
 	if (list(S.shape)[1] != list(a.shape)[1]): 
 		return -100
@@ -76,7 +80,10 @@ def add_action(S, a):
 	num_steps = list(S.shape)[-1] #the length in timesteps of the given state 
 
 	#will hold S rotated one row upward with a at the last row
-	output = torch.empty(S.shape)
+	if CUDA:
+		output = torch.empty(S.shape).type(torch.cuda.FloatTensor)
+	else:
+		output = torch.empty(S.shape)
 
 	#transfer the all but the first row of S to all but the last row of the output
 	output[0,:,0:num_steps-1] = S[0,:,1:num_steps]
@@ -91,9 +98,17 @@ def add_action(S, a):
 
 
 #trains the Note_CNN for a given number of iterations
-def train_Note_CNN(training_data, validation_data, Note_CNN, num_epochs=1000, log_mse=False, log_every=50, filename = "NOTE_CNN_WEIGHTS.pt"):
-	training_data = Variable(torch.tensor(training_data))
-	validation_data = Variable(torch.tensor(validation_data))
+def train_Note_CNN(training_data, validation_data, Note_CNN, num_epochs=1000, log_loss=False, log_every=50, filename = "NOTE_CNN_WEIGHTS.pt", debug=False, CUDA = False):
+	dtype = torch.FloatTensor
+
+	if CUDA:
+		Note_CNN = Note_CNN.cuda()
+		dtype = torch.cuda.FloatTensor
+
+	training_data = Variable(torch.tensor(training_data).type(dtype))
+	training_data.requires_grad = False
+	validation_data = Variable(torch.tensor(validation_data).type(dtype))
+	validation_data.requires_grad = False
 
 	num_examples_validation = validation_data.shape[0]
 	num_examples_train = training_data.shape[0]
@@ -104,11 +119,16 @@ def train_Note_CNN(training_data, validation_data, Note_CNN, num_epochs=1000, lo
 	if (num_instruments != validation_data.shape[1] or num_steps != validation_data.shape[2]):
 		return -100
 
-	if log_mse:
-		loss_log = np.array(int(num_epochs/log_every))
+	if log_loss:
+		loss_log = np.zeros(int(num_epochs/log_every))
 
 	crossentropy = torch.nn.CrossEntropyLoss()
+	if CUDA:
+		crossentropy = crossentropy.cuda()
+
 	optim = torch.optim.Adam(Note_CNN.parameters(), lr=1e-3)
+
+	start = time.time()
 
 	for e in range(num_epochs):
 		sample_order = np.random.choice(num_examples_train, num_examples_train, replace=False) #get a random ordering of samples
@@ -116,14 +136,14 @@ def train_Note_CNN(training_data, validation_data, Note_CNN, num_epochs=1000, lo
 		for s in range(num_examples_train):
 			sample = training_data[sample_order[s]].view(1, num_instruments, num_steps) #current training sample
 
-			for i in range(7, num_steps): #starting at the eigth row, feed the traing example to the network and train
+			for i in range(8, num_steps): #starting at the eigth row, feed the traing example to the network and train
 				optim.zero_grad()
 
-				state = size_right(sample[0,:,0:i+1].view(1,num_instruments,-1), num_steps, num_instruments) #get the current state by expanding the first i rows
+				state = size_right(sample[0,:,0:i].view(1,num_instruments,-1), num_steps, num_instruments, CUDA=CUDA) #get the current state by expanding the first i rows
 
 				net_out = Note_CNN(state) #the network output for this particular set of rows
 
-				target = Variable(torch.argmax(sample[0,:,i+1].squeeze()).view(-1)) #take the argmax of the next row to get an index for cross entropy loss
+				target = Variable(torch.argmax(sample[0,:,i].squeeze()).view(-1)) #take the argmax of the next row to get an index for cross entropy loss
 
 				loss = crossentropy(net_out, target) 
 
@@ -132,26 +152,32 @@ def train_Note_CNN(training_data, validation_data, Note_CNN, num_epochs=1000, lo
 				optim.step()
 
 		#check if we must log validation MSE - if so, iterate through every example in validation set and sum loss vs net predictin
-		if (log_mse and e%log_every==0): 
+		if (log_loss and e%log_every==0): 
 
 			for s in range(num_examples_validation):
 				sample = validation_data[s].view(1, num_instruments, num_steps) #current training sample
 
-				for i in range(7, num_steps): #starting at the eigth row, feed the traing example to the network and train
-					state = size_right(sample[0,:,0:i+1].view(1,num_instruments,-1), num_steps, num_instruments) #get the current state by expanding the first i rows
+				for i in range(8, num_steps): #starting at the eigth row, feed the traing example to the network and train
+					state = size_right(sample[0,:,0:i].view(1,num_instruments,-1), num_steps, num_instruments, CUDA=CUDA) #get the current state by expanding the first i rows
 
 					net_out = Note_CNN(state) #the network output for this particular set of rows
 
-					target = Variable(torch.argmax(sample[0,:,i+1].squeeze()).view(-1)) #take the argmax of the next row to get an index for cross entropy loss
+					target = Variable(torch.argmax(sample[0,:,i].squeeze()).view(-1)) #take the argmax of the next row to get an index for cross entropy loss
 
 					loss = crossentropy(net_out, target) 
 
-					loss_log[int(e/log_every)] += loss.detach().numpy()
+					loss_log[int(e/log_every)] += loss.detach().cpu().numpy()
+			
+			if debug:
+				print("Iteration ", e)
+				print("Time: ", time.time()-start)
+				print(loss_log[int(e/log_every)])
+				print("\n")
 
 
-	torch.save(Note_CNN.state_dict(), filename)
+	torch.save(Note_CNN.cpu().state_dict(), filename)
 
-	
-	return loss_log
+	if log_loss:
+		return loss_log
 
 	return -1

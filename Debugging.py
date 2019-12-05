@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import Note_RNN as nrnn
+import time
 
 print("------TESTING SIZE CORRECTION TO 32 STEPS---------")
 print("Should be only last row with a 1 in the first position\n")
@@ -100,3 +101,16 @@ print(net(X3))
 print(list(net(X3).shape))
 
 
+print("\n------TESTING NOTE CNN TRAINING FOR REALZZ!!!!!!---------")
+print("===================================================================================================\n")
+
+data = np.load("tracks_one_hot_1100.npy")
+print(data.shape)
+
+training_data = data[0:1000]
+validation_data = data[1000:1100]
+
+print(training_data.shape)
+print(validation_data.shape)
+
+nrnn.train_Note_CNN(training_data, validation_data, net, num_epochs=100, log_every=10, log_loss=True, debug=True, CUDA=torch.cuda.is_available())
