@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 import Note_RNN as nrnn
 import time
+import DQN 
 
 print("------TESTING SIZE CORRECTION TO 32 STEPS---------")
 print("Should be only last row with a 1 in the first position\n")
@@ -23,7 +24,7 @@ print("Row 32: ", output[0,:,31])
 print("\n------TESTING ADDING AN ACTION TO A STATE---------")
 print("SHOULD SHOW 6 CHANNELS WITH LAST TWO ROWS HAVING 1 IN FIRST POS\n")
 
-action_added = nrnn.add_action(output, y)
+action_added = DQN.add_action(output, y)
 print("Row 1: ", action_added[0,:,0])
 print("Row 2: ", action_added[0,:,1])
 print("Row 3: ", action_added[0,:,2])
@@ -33,7 +34,7 @@ print("Row 32: ", action_added[0,:,31])
 
 print("\nSHOULD SHOW 6 CHANNELS WITH LAST THREE ROWS HAVING 1 IN FIRST POS\n")
 
-action_added = nrnn.add_action(action_added, y)
+action_added = DQN.add_action(action_added, y)
 
 print("Row 1: ", action_added[0,:,0])
 print("Row 2: ", action_added[0,:,1])
@@ -98,7 +99,7 @@ X3.requires_grad = False
 
 print(net(X3))
 
-print(list(net(X3).shape))
+print(net(X3).detach().cpu().numpy()[0])
 
 
 print("\n------TESTING NOTE CNN TRAINING FOR REALZZ!!!!!!---------")
@@ -113,4 +114,33 @@ validation_data = data[1000:1100]
 print(training_data.shape)
 print(validation_data.shape)
 
-nrnn.train_Note_CNN(training_data, validation_data, net, num_epochs=100, log_every=10, log_loss=True, debug=True, CUDA=torch.cuda.is_available())
+##nrnn.train_Note_CNN(training_data, validation_data, net, num_epochs=100, log_every=10, log_loss=True, debug=True, CUDA=torch.cuda.is_available())
+
+
+
+
+print("\n------TESTING DQN iINITIALISATIONS--------")
+print("===================================================================================================\n")
+
+Q = DQN.init_DQN(32, 10, "NOTE_CNN_WEIGHTS.pt", CUDA=torch.cuda.is_available())
+Target_Q  = DQN.init_DQN(32, 10, "NOTE_CNN_WEIGHTS.pt", CUDA=torch.cuda.is_available())
+
+#DQN.update_target_DQN(Target_Q, Q, 1)
+
+#print(Q.convs.weight)
+#print(Target_Q.convs.weight)
+
+#rando = DQN.random_one_hot(10, CUDA=torch.cuda.is_available())
+
+#print (rando) 
+
+
+print("\n------TESTING RL TRAINING--------")
+print("===================================================================================================\n")
+
+Note_CNN = nrnn.Note_CNN(1, 32, 10)
+Note_CNN.load_state_dict(torch.load("NOTE_CNN_WEIGHTS.pt"))
+Note_CNN.cuda()
+
+rewards = DQN.Q_learning(Note_CNN, Q, Target_Q, 32, 10, "DQN_weights/Q", "DQN_weights/Target_Q", num_saves=10, num_iterations=300000, update_target_every=10, num_rewards_avg=50, CUDA = torch.cuda.is_available())
+np.save("DQN_weights/reward_log", rewards)

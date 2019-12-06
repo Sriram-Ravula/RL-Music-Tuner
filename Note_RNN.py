@@ -60,42 +60,12 @@ def size_right(X, num_steps, num_instruments, CUDA=False):
     else:
     	output = torch.zeros(1, num_instruments, num_steps)
 
-    output[0,:,num_steps-snippet_length:num_steps] = X
+    output[0,:,num_steps-snippet_length:num_steps] = X.clone()
 
     output = Variable(output)
     output.requires_grad = False
 
     return output
-
-#Given a state of shape (1, num_instruments, num_steps) and an action of size (1, num_instruments, 1), add the action to the end of the state and rotate all other actions upward
-#important - given state has full 
-def add_action(S, a, CUDA=False):
-	#check that the two inputs have the same number of channels
-	if (list(S.shape)[1] != list(a.shape)[1]): 
-		return -100
-	#check that the given action has only one timestep
-	if (list(a.shape)[-1] != 1):
-		return -100
-
-	num_steps = list(S.shape)[-1] #the length in timesteps of the given state 
-
-	#will hold S rotated one row upward with a at the last row
-	if CUDA:
-		output = torch.empty(S.shape).type(torch.cuda.FloatTensor)
-	else:
-		output = torch.empty(S.shape)
-
-	#transfer the all but the first row of S to all but the last row of the output
-	output[0,:,0:num_steps-1] = S[0,:,1:num_steps]
-
-	#put the taken action as the last timestep
-	output[0,:,num_steps-1] = a.squeeze()
-
-	output = Variable(output)
-	output.requires_grad = False
-
-	return output
-
 
 #trains the Note_CNN for a given number of iterations
 def train_Note_CNN(training_data, validation_data, Note_CNN, num_epochs=1000, log_loss=False, log_every=50, filename = "NOTE_CNN_WEIGHTS.pt", debug=False, CUDA = False):
