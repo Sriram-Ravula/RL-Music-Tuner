@@ -8,6 +8,7 @@ import Note_RNN as nrnn
 import time
 import DQN 
 
+"""
 print("------TESTING SIZE CORRECTION TO 32 STEPS---------")
 print("Should be only last row with a 1 in the first position\n")
 
@@ -114,16 +115,18 @@ validation_data = data[1000:1100]
 print(training_data.shape)
 print(validation_data.shape)
 
-##nrnn.train_Note_CNN(training_data, validation_data, net, num_epochs=100, log_every=10, log_loss=True, debug=True, CUDA=torch.cuda.is_available())
 
+Note_CNN = nrnn.Note_CNN(1, 32, 10)
+loss_log = nrnn.train_Note_CNN(training_data, validation_data, Note_CNN, num_epochs=150, log_every=15, log_loss=True, debug=True, CUDA=torch.cuda.is_available(), filename = "NOTE_CNN_WEIGHTS_200.pt")
+np.save("DQN_weights/reward_log_NOTECNN", loss_log)
 
 
 
 print("\n------TESTING DQN iINITIALISATIONS--------")
 print("===================================================================================================\n")
 
-Q = DQN.init_DQN(32, 10, "NOTE_CNN_WEIGHTS.pt", CUDA=torch.cuda.is_available())
-Target_Q  = DQN.init_DQN(32, 10, "NOTE_CNN_WEIGHTS.pt", CUDA=torch.cuda.is_available())
+Q = DQN.init_DQN(32, 10, "NOTE_CNN_WEIGHTS_200.pt", CUDA=torch.cuda.is_available())
+Target_Q  = DQN.init_DQN(32, 10, "NOTE_CNN_WEIGHTS_200.pt", CUDA=torch.cuda.is_available())
 
 #DQN.update_target_DQN(Target_Q, Q, 1)
 
@@ -134,13 +137,16 @@ Target_Q  = DQN.init_DQN(32, 10, "NOTE_CNN_WEIGHTS.pt", CUDA=torch.cuda.is_avail
 
 #print (rando) 
 
-
+"""
 print("\n------TESTING RL TRAINING--------")
 print("===================================================================================================\n")
 
+Q = DQN.init_DQN(32, 10, "NOTE_CNN_WEIGHTS_200.pt", CUDA=torch.cuda.is_available())
+Target_Q  = DQN.init_DQN(32, 10, "NOTE_CNN_WEIGHTS_200.pt", CUDA=torch.cuda.is_available())
+
 Note_CNN = nrnn.Note_CNN(1, 32, 10)
-Note_CNN.load_state_dict(torch.load("NOTE_CNN_WEIGHTS.pt"))
+Note_CNN.load_state_dict(torch.load("NOTE_CNN_WEIGHTS_200.pt"))
 Note_CNN.cuda()
 
-rewards = DQN.Q_learning(Note_CNN, Q, Target_Q, 32, 10, "DQN_weights/Q", "DQN_weights/Target_Q", num_saves=10, num_iterations=300000, update_target_every=10, num_rewards_avg=50, CUDA = torch.cuda.is_available())
-np.save("DQN_weights/reward_log", rewards)
+rewards = DQN.Q_learning(Note_CNN, Q, Target_Q, 32, 10, "DQN_weights/Q_200", "DQN_weights/Target_Q_200", num_saves=10, num_iterations=500000, update_target_every=10, num_rewards_avg=50, CUDA = torch.cuda.is_available(), epsilon = 0.5)
+np.save("DQN_weights/reward_log_DQN", rewards)
