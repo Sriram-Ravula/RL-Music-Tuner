@@ -154,6 +154,31 @@ def find_best_action(Q, S, num_instruments, CUDA=False):
 
 	return a_best, max_val
 
+#Given a number of steps and a number of instruments, seeds a DQN with the given weights and generates num_samples samples of music
+def generate_sample(weight_filename, num_steps, num_instruments, num_samples = 1):
+	Q = DQN(num_steps, num_instruments) #initialise a DQN with the given weights
+	Q.load_state_dict(torch.load(weight_filename))
+
+	sample_list = np.empty((num_samples, num_instruments, num_steps)) #the list of samples to return
+
+	#Iterate through the number of required samples
+	for n in range(num_samples):
+		S = random_one_hot(num_instruments)[0] #get a random seed and correct its size
+		S = Note_RNN.size_right(S, num_steps, num_instruments)
+
+		#Iterate through the last n-1 places and use the greedy policy of the DQN to perform action selection
+		for t in range(num_steps-1): 
+			a_best = find_best_action(Q, S, num_instruments)[0] #the greedy optimal policy action selection
+			a = one_hot(a_best, num_instruments) #the one-hot vector corresponsing to a_best
+
+			S_next = add_action(S, a) #the next state after taking the greedy action
+
+			S = S_next #the next state is now the current state
+
+		sample_list[n] = S.detach().cpu().numpy()[0] #add the sample to the list to be output
+
+	return sample_list
+
 
 #DQN_filename and Target_DQN_filename give the file prefix of the location to intermittently save weights - will append a "-#.pt" to each
 #num_saves - the number of times to save the DQN and Target DQN weights

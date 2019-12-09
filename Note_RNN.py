@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import time
+import DQN
 
 class Flatten(torch.nn.Module):
     def forward(self, x):
@@ -66,6 +67,36 @@ def size_right(X, num_steps, num_instruments, CUDA=False):
     output.requires_grad = False
 
     return output
+
+#Generate Samples from a NoteCNN
+def generate_samples_NoteCNN(weight_filename, num_steps, num_instruments, num_samples = 1):
+	CNN = Note_CNN(1, num_steps, num_instruments) #initialise a Note CNN to produce samples with
+	Note_CNN.load_state_dict(torch.load(weight_filename)) 
+
+	sample_list = np.empty((num_samples, num_instruments, num_steps)) #the list of samples to return
+
+	#Iterate through the number of required samples
+	for n in range(num_samples):
+		S = DQN.random_one_hot(num_instruments)[0] #get a random seed and correct its size
+		S = size_right(S, num_steps, num_instruments)
+
+		#Iterate through the last n-1 places and use the probability distribution of the Note CNN to pick actions
+		for t in range(num_steps-1): 
+			action_probs = CNN(S).detach().cpu().numpy()[0].squeeze() #get the probability distribuition p(a|s)
+
+			a_index = np.random.choice(a=num_instruments, p=action_probs) #choose a random action based on p(a|s)
+
+			a = DQN.one_hot(a_index, num_instruments) #the one-hot vector corresponsing to a_best
+
+			S_next = DQN.add_action(S, a) #the next state after taking the greedy action
+
+			S = S_next #the next state is now the current state
+
+		sample_list[n] = S.detach().cpu().numpy()[0] #add the sample to the list to be output
+
+	return sample_list
+
+
 
 #trains the Note_CNN for a given number of iterations
 def train_Note_CNN(training_data, validation_data, Note_CNN, num_epochs=1000, log_loss=False, log_every=50, filename = "NOTE_CNN_WEIGHTS.pt", debug=False, CUDA = False):

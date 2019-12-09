@@ -7,6 +7,7 @@ from torch.autograd import Variable
 import Note_RNN as nrnn
 import time
 import DQN 
+import matplotlib.pyplot as plt
 
 """
 print("------TESTING SIZE CORRECTION TO 32 STEPS---------")
@@ -117,16 +118,16 @@ print(validation_data.shape)
 
 
 Note_CNN = nrnn.Note_CNN(1, 32, 10)
-loss_log = nrnn.train_Note_CNN(training_data, validation_data, Note_CNN, num_epochs=200, log_every=20, log_loss=True, debug=True, CUDA=torch.cuda.is_available(), filename = "NOTE_CNN_WEIGHTS_300.pt")
-np.save("DQN_weights/reward_log_NOTECNN_300", loss_log)
+loss_log = nrnn.train_Note_CNN(training_data, validation_data, Note_CNN, num_epochs=100, log_every=10, log_loss=True, debug=True, CUDA=torch.cuda.is_available(), filename = "NOTE_CNN_WEIGHTS_400.pt")
+np.save("DQN_weights/reward_log_NOTECNN_400", loss_log)
 
 
-
+"""
 print("\n------TESTING DQN iINITIALISATIONS--------")
 print("===================================================================================================\n")
 
-Q = DQN.init_DQN(32, 10, "NOTE_CNN_WEIGHTS_300.pt", CUDA=torch.cuda.is_available())
-Target_Q  = DQN.init_DQN(32, 10, "NOTE_CNN_WEIGHTS_300.pt", CUDA=torch.cuda.is_available())
+Q = DQN.init_DQN(32, 10, "NOTE_CNN_WEIGHTS_400.pt", CUDA=torch.cuda.is_available())
+Target_Q  = DQN.init_DQN(32, 10, "NOTE_CNN_WEIGHTS_400.pt", CUDA=torch.cuda.is_available())
 
 #DQN.update_target_DQN(Target_Q, Q, 1)
 
@@ -142,9 +143,40 @@ print("\n------TESTING RL TRAINING--------")
 print("===================================================================================================\n")
 
 Note_CNN = nrnn.Note_CNN(1, 32, 10)
-Note_CNN.load_state_dict(torch.load("NOTE_CNN_WEIGHTS_300.pt"))
+Note_CNN.load_state_dict(torch.load("NOTE_CNN_WEIGHTS_400.pt"))
 Note_CNN.cuda()
 
-rewards = DQN.Q_learning(Note_CNN, Q, Target_Q, 32, 10, "DQN_weights/Q_300", "DQN_weights/Target_Q_300", num_saves=10, num_iterations=500000, update_target_every=10, num_rewards_avg=50, CUDA = torch.cuda.is_available(), epsilon = 0.3)
-np.save("DQN_weights/reward_log_DQN_300", rewards)
+rewards = DQN.Q_learning(Note_CNN, Q, Target_Q, 32, 10, "DQN_weights/Q_500", "DQN_weights/Target_Q_500", num_saves=10, num_iterations=100000, update_target_every=10, num_rewards_avg=50, CUDA = torch.cuda.is_available(), epsilon = 0.05)
+np.save("DQN_weights/reward_log_DQN_500", rewards)
+
+
+"""
+a = np.load("DQN_weights/reward_log_DQN.npy")
+b = np.load("DQN_weights/reward_log_DQN_200.npy")
+c = np.load("DQN_weights/reward_log_DQN_300.npy")
+d = np.load("DQN_weights/reward_log_DQN_400.npy")
+
+def running_mean(x, N):
+    cumsum = np.cumsum(np.insert(x, 0, 0)) 
+    return (cumsum[N:] - cumsum[:-N]) / float(N)
+
+a = running_mean(a, 1000)
+b = running_mean(b, 1000)
+c = running_mean(c, 1000)
+d = running_mean(d, 1000)
+
+x = range(len(list(a.squeeze())))
+
+plt.figure()
+plt.plot(x, d, label=r"$\epsilon=0.01$")
+plt.plot(x, a, label=r"$\epsilon=0.1$")
+plt.plot(x, c, label=r"$\epsilon=0.3$")
+plt.plot(x, b, label=r"$\epsilon=0.5$")
+plt.grid()
+plt.ylabel("Rolling Average of 1000 Rewards")
+plt.xlabel("Iteration")
+plt.legend()
+plt.show()
+
+#np.save("0.5_samples", DQN.generate_sample("DQN_weights/Q_200-500000.pt", 32, 10, 100))
 """
