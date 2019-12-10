@@ -22,7 +22,8 @@ Run with: demo.exe [model] [num_samples]
 - "0.3" - epsilon = 0.3
 - "0.5" - epsilon = 0.5
   
-#### num_samples: integer, the number of MIDI samples you wish to generate
+#### num_samples: 
+integer, the number of MIDI samples you wish to generate
 
-Outputs:
-- num_samples MIDI samples with filenames "demo_song-#.mid"
+#### Outputs:
+num_samples MIDI samples with filenames "demo_song-#.mid"
