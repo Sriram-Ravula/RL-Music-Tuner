@@ -12,7 +12,7 @@ Our demo allows you to generate MIDI samples with a given policy derived from a 
 Run with: demo.exe [model] [num_samples]
 
 
-Parameter Options:
+## Parameter Options:
 
 model: 
 - "Note_CNN" - supervised model
