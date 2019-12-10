@@ -1,6 +1,10 @@
 # RL-Music-Tuner
 Music generation and tuning using convolutional networks and reinforcement learning
 
+Required Packages:
+- PyTorch
+- Mido
+
 To Use:
 --------
 Our demo allows you to generate MIDI samples with a given policy derived from a pre-trined Q-network. The model is primed with a random starting state then generates a drum composition with 32 sixteenth notes for a total of two measures.
@@ -8,7 +12,7 @@ Our demo allows you to generate MIDI samples with a given policy derived from a 
 Run with: demo.exe [model] [num_samples]
 
 Parameter Options:
-  Model: "Note_CNN" - supervised model,
+  model: "Note_CNN" - supervised model,
          "0.01" - Q-network trained with epsilon = 0.01 greedy action selection
          "0.05" - epsilon = 0.05
          "0.1" - epsilon = 0.1
