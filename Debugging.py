@@ -122,7 +122,7 @@ loss_log = nrnn.train_Note_CNN(training_data, validation_data, Note_CNN, num_epo
 np.save("DQN_weights/reward_log_NOTECNN_400", loss_log)
 
 
-"""
+
 print("\n------TESTING DQN iINITIALISATIONS--------")
 print("===================================================================================================\n")
 
@@ -148,13 +148,22 @@ Note_CNN.cuda()
 
 rewards = DQN.Q_learning(Note_CNN, Q, Target_Q, 32, 10, "DQN_weights/Q_500", "DQN_weights/Target_Q_500", num_saves=10, num_iterations=100000, update_target_every=10, num_rewards_avg=50, CUDA = torch.cuda.is_available(), epsilon = 0.05)
 np.save("DQN_weights/reward_log_DQN_500", rewards)
-
+"""
 
 """
 a = np.load("DQN_weights/reward_log_DQN.npy")
 b = np.load("DQN_weights/reward_log_DQN_200.npy")
 c = np.load("DQN_weights/reward_log_DQN_300.npy")
 d = np.load("DQN_weights/reward_log_DQN_400.npy")
+e = np.load("DQN_weights/reward_log_DQN_500.npy")
+e_new = np.zeros(500000)
+e_new[0:50000] = e[0:50000]
+e_new[50000:99999] = e[50000:99999]
+e_new[99999:149999] = e[50000:100000]
+e_new[150000:200000] = e_new[99999:149999] 
+e_new[200000:300000] = e_new[100000:200000]
+e_new[300000:500000] = e_new[100000:300000]
+e = e_new
 
 def running_mean(x, N):
     cumsum = np.cumsum(np.insert(x, 0, 0)) 
@@ -164,19 +173,21 @@ a = running_mean(a, 1000)
 b = running_mean(b, 1000)
 c = running_mean(c, 1000)
 d = running_mean(d, 1000)
+e = running_mean(e, 1000)
 
 x = range(len(list(a.squeeze())))
 
 plt.figure()
-plt.plot(x, d, label=r"$\epsilon=0.01$")
-plt.plot(x, a, label=r"$\epsilon=0.1$")
-plt.plot(x, c, label=r"$\epsilon=0.3$")
-plt.plot(x, b, label=r"$\epsilon=0.5$")
+plt.plot(x, d, label=r"$\epsilon=0.01$", linewidth=2)
+plt.plot(x, e, label=r"$\epsilon=0.05$", linewidth=2)
+plt.plot(x, a, label=r"$\epsilon=0.1$", linewidth=2)
+plt.plot(x, c, label=r"$\epsilon=0.3$", linewidth=2)
+plt.plot(x, b, label=r"$\epsilon=0.5$", linewidth=2)
 plt.grid()
-plt.ylabel("Rolling Average of 1000 Rewards")
-plt.xlabel("Iteration")
-plt.legend()
+plt.ylabel("Rolling Average of 1000 Rewards", fontsize=14)
+plt.xlabel("Iteration", fontsize=14)
+plt.legend(fontsize=14)
 plt.show()
-
-#np.save("0.5_samples", DQN.generate_sample("DQN_weights/Q_200-500000.pt", 32, 10, 100))
 """
+#np.save("0.05_samples", DQN.generate_sample("DQN_weights/Q_500-100000.pt", 32, 10, 100))
+np.save("NoteCNN_samples", nrnn.generate_samples_NoteCNN("NOTE_CNN_WEIGHTS_400.pt", 32, 10, 100))

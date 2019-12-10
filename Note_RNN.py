@@ -71,7 +71,7 @@ def size_right(X, num_steps, num_instruments, CUDA=False):
 #Generate Samples from a NoteCNN
 def generate_samples_NoteCNN(weight_filename, num_steps, num_instruments, num_samples = 1):
 	CNN = Note_CNN(1, num_steps, num_instruments) #initialise a Note CNN to produce samples with
-	Note_CNN.load_state_dict(torch.load(weight_filename)) 
+	CNN.load_state_dict(torch.load(weight_filename)) 
 
 	sample_list = np.empty((num_samples, num_instruments, num_steps)) #the list of samples to return
 
