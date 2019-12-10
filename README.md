@@ -7,7 +7,7 @@ Required Packages:
 
 To Use:
 --------
-Our demo allows you to generate MIDI samples with a given policy derived from a pre-trined Q-network. The model is primed with a random starting state then generates a drum composition with 32 sixteenth notes for a total of two measures.
+Our demo allows you to generate MIDI samples with a given policy derived from a pre-trained Q-network. The model is primed with a random starting state then generates a drum composition with 32 sixteenth notes for a total of two measures.
 
 Run with: demo.exe [model] [num_samples]
 
