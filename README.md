@@ -12,6 +12,8 @@ Our demo allows you to generate MIDI samples with a given policy derived from a 
 
 ### Run in command line with: python Demo.py [model] [num_samples]
 
+example: python Demo.py 0.05 10
+
 
 ### Parameter Options:
 
