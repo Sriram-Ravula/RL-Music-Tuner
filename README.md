@@ -10,7 +10,7 @@ To Use:
 --------
 Our demo allows you to generate MIDI samples with a given policy derived from a pre-trained Q-network. The model is primed with a random starting state then generates a drum composition with 32 sixteenth notes for a total of two measures. To play the MIDI, use a MIDI-enabled media player such as WMP or VLC, or use https://www.midieditor.org/ .
 
-Run in command line with: python demo.py [model] [num_samples]
+### Run in command line with: python demo.py [model] [num_samples]
 
 
 ### Parameter Options:
