@@ -43,9 +43,3 @@ def one_hot_to_midi(one_hot, midi_filename = 'song.mid'):
     track.append(Message('note_off', channel=9, note=pitch, velocity=127, time=duration))
 
   mid.save(midi_filename)
-
-np_file = sys.argv[1]
-midi_file = sys.argv[2]
-
-one_hot = np.load(np_file)
-one_hot_to_midi(one_hot, midi_filename = midi_file)
